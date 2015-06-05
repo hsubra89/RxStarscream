@@ -1,0 +1,6 @@
+[submodule "Starscream"]
+	path = Starscream
+	url = git@github.com:daltoniam/Starscream.git
+[submodule "RxSwift"]
+	path = RxSwift
+	url = git@github.com:kzaher/RxSwift.git
