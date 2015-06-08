@@ -23,51 +23,53 @@ class RxStarscreamTests: XCTestCase {
     var ws: RxWebSocket!
     
     override func setUp() {
-        self.ws = RxWebSocket(url: NSURL(string: "wss://echo.websocket.org")!)
+        self.ws = RxWebSocket(url: NSURL(string: "wss://echo.websocket.org")!, protocols: [])
     }
     
     func testRxStream() {
         // This is an example of a functional test case.
         let expectation = expectationWithDescription("Websocket test")
         
-        var wsSequence = self.ws.rxObservable()
+        var numberOfStringsReceived = 0
         
-        wsSequence
+        let socketCommunication = { (event: WebSocketEvent) -> Void in
+            switch event {
+            case .Connected(socket: let socket):
+                socket.writeString("Sending string 1")
+                socket.writeString("Sending string 2")
+                socket.writeString("Sending string 3")
+            case .DataMessage(data: let data):
+                println("Recevied data: \(data)")
+            case .TextMessage(message: let message):
+                println("Received string: \(message)")
+                numberOfStringsReceived++
+                if numberOfStringsReceived == 3 {
+                    expectation.fulfill()
+                }
+            }
+        }
+        
+        let subscription = self.ws
             >- subscribe({ (event) -> Void in
                 
                 switch event {
                 case .Completed:
-                    println("Disconnected")
-                    expectation.fulfill()
-                    
-                case .Next(let boxedVal):
-                    let val: AnyObject = boxedVal.value
-                    
-                    if let text = val as? String {
-                        println("Received string: \(text)")
-                    }
-                    
-                    if let data = val as? NSData {
-                        println("Recevied data: \(data)")
-                    }
-                
+                    XCTAssert(false, "This should never happen")
+                    break
+                case .Next(let boxedNext):
+                    socketCommunication(boxedNext.value)
                 case .Error(let err):
                     println("Error occurred :\n")
                     println(err)
                 }
             })
         
-        ws.writeString("Sending string 1")
-        ws.writeString("Sending string 2")
-        ws.writeString("Sending string 3")
-        
         setTimeout(5, { () -> () in
             println("running after 5 seconds")
-            self.ws.disconnect()
+            subscription.dispose()
         })
         
         waitForExpectationsWithTimeout(10, handler: { (e) -> Void in
-            
             if e != nil {
                 println("Error Occurred : \n")
                 println(e!)
