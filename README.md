@@ -1,2 +1,2 @@
 # RxStarscream
-RxSwift bindings for Starscream - The websocket library
+An example of generating RxSwift sequences for Starscream.
