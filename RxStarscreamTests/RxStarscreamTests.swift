@@ -27,35 +27,27 @@ class RxStarscreamTests: XCTestCase {
     }
     
     func testRxStream() {
-        // This is an example of a functional test case.
+
         let expectation = expectationWithDescription("Websocket test")
-        
-        var numberOfStringsReceived = 0
         
         let socketCommunication = { (event: WebSocketEvent) -> Void in
             switch event {
             case .Connected(socket: let socket):
-                socket.writeString("Sending string 1")
-                socket.writeString("Sending string 2")
-                socket.writeString("Sending string 3")
-            case .DataMessage(data: let data):
+                println("Connected to WebSocket")
+            case .DataMessage(_, data: let data):
                 println("Recevied data: \(data)")
-            case .TextMessage(message: let message):
+            case .TextMessage(_, message: let message):
                 println("Received string: \(message)")
-                numberOfStringsReceived++
-                if numberOfStringsReceived == 3 {
-                    expectation.fulfill()
-                }
+            case .Disconnected(socket: let socket):
+                println("Disconnected")
             }
         }
         
-        let subscription = self.ws
+        let subscription = self.ws.rxObservable()
             >- subscribe({ (event) -> Void in
-                
                 switch event {
                 case .Completed:
-                    XCTAssert(false, "This should never happen")
-                    break
+                    expectation.fulfill()
                 case .Next(let boxedNext):
                     socketCommunication(boxedNext.value)
                 case .Error(let err):
@@ -64,12 +56,25 @@ class RxStarscreamTests: XCTestCase {
                 }
             })
         
-        setTimeout(5, { () -> () in
-            println("running after 5 seconds")
-            subscription.dispose()
+        self.ws.writeString("Hello 1")
+        self.ws.writeString("Hello 2")
+        
+        setTimeout(7, { () -> () in
+            self.ws.disconnect()
+            
+            setTimeout(3, { () -> () in
+                
+                self.ws.connect()
+                self.ws.writeString("Hello 3")
+                
+                setTimeout(7, { () -> () in
+                    subscription.dispose()
+                })
+            })
+            
         })
         
-        waitForExpectationsWithTimeout(10, handler: { (e) -> Void in
+        waitForExpectationsWithTimeout(100, handler: { (e) -> Void in
             if e != nil {
                 println("Error Occurred : \n")
                 println(e!)
